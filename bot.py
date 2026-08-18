@@ -8,6 +8,8 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 
 TOKEN = "8737182258:AAHMlj4Xzym8svHvC4YLANw9JQ3kADE-b4Y"
 
+ADMIN_ID = 8319293537
+
 BOT_USERNAME = "Kasetachi_uz_bot"
 
 BONUS_PER_FRIEND = 5000
