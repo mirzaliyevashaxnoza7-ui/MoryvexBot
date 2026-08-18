@@ -436,7 +436,13 @@ def main():
             buttons
         )
     )
+    app.add_handler(
+    CommandHandler("start", start)
+)
 
+app.add_handler(
+    CommandHandler("admin", admin)
+)
     print("🤖 KASETACHI BOT ISHLAYAPTI!")
 
     app.run_polling()
