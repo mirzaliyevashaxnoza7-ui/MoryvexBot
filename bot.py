@@ -1,38 +1,54 @@
 import sqlite3
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+import random
+
+from telegram import (
+    Update,
+    ReplyKeyboardMarkup,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
+)
+
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters
+)
+
 
 # =========================
 # SOZLAMALAR
 # =========================
 
-TOKEN = "8737182258:AAHMlj4Xzym8svHvC4YLANw9JQ3kADE-b4Y"
+TOKEN = "YANGI_BOT_TOKENING"
 
-ADMIN_ID = 8319293537
+ADMIN_ID = 123456789
 
-BOT_USERNAME = "Kasetachi_uz_bot"
+CHANNEL_USERNAME = "@SENING_KANALING"
 
-BONUS_PER_FRIEND = 5000
-REQUIRED_FRIENDS = 5
-
-# Sening belgilagan joylashuving
 MY_LATITUDE = 41.192947971842685
 MY_LONGITUDE = 69.02532913641379
+
 
 # =========================
 # DATABASE
 # =========================
 
-db = sqlite3.connect("kasetachi.db", check_same_thread=False)
+db = sqlite3.connect(
+    "kasetachi.db",
+    check_same_thread=False
+)
+
 cursor = db.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
     first_name TEXT,
-    referrer_id INTEGER,
-    friends INTEGER DEFAULT 0,
-    balance INTEGER DEFAULT 0
+    played INTEGER DEFAULT 0,
+    prize TEXT
 )
 """)
 
@@ -43,7 +59,7 @@ db.commit()
 # USER QO‘SHISH
 # =========================
 
-def add_user(user_id, first_name, referrer_id=None):
+def add_user(user_id, first_name):
 
     cursor.execute(
         "SELECT user_id FROM users WHERE user_id = ?",
@@ -51,98 +67,136 @@ def add_user(user_id, first_name, referrer_id=None):
     )
 
     if cursor.fetchone():
-        return False
+        return
 
     cursor.execute("""
         INSERT INTO users
-        (user_id, first_name, referrer_id, friends, balance)
-        VALUES (?, ?, ?, 0, 0)
-    """, (user_id, first_name, referrer_id))
+        (user_id, first_name, played, prize)
+        VALUES (?, ?, 0, NULL)
+    """, (
+        user_id,
+        first_name
+    ))
 
     db.commit()
-    return True
 
 
 # =========================
-# START
+# OBUNANI TEKSHIRISH
 # =========================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def is_subscribed(
+    user_id,
+    context
+):
 
-    user = update.effective_user
-    user_id = user.id
+    try:
 
-    referrer_id = None
-
-    if context.args:
-        try:
-            referrer_id = int(context.args[0])
-        except ValueError:
-            referrer_id = None
-
-    if referrer_id == user_id:
-        referrer_id = None
-
-    is_new = add_user(
-        user_id,
-        user.first_name,
-        referrer_id
-    )
-
-    # Yangi referral
-    if is_new and referrer_id:
-
-        cursor.execute(
-            "SELECT user_id FROM users WHERE user_id = ?",
-            (referrer_id,)
+        member = await context.bot.get_chat_member(
+            chat_id=CHANNEL_USERNAME,
+            user_id=user_id
         )
 
-        if cursor.fetchone():
+        return member.status in [
+            "member",
+            "administrator",
+            "creator"
+        ]
 
-            cursor.execute("""
-                UPDATE users
-                SET friends = friends + 1,
-                    balance = balance + ?
-                WHERE user_id = ?
-            """, (BONUS_PER_FRIEND, referrer_id))
+    except Exception:
 
-            db.commit()
+        return False
 
-            cursor.execute("""
-                SELECT friends, balance
-                FROM users
-                WHERE user_id = ?
-            """, (referrer_id,))
 
-            result = cursor.fetchone()
+# =========================
+# OBUNA OYNASI
+# =========================
 
-            if result:
-                friends, balance = result
+async def show_subscription(
+    update,
+    context
+):
 
-                try:
-                    await context.bot.send_message(
-                        chat_id=referrer_id,
-                        text=(
-                            "🎉 YANGI DO‘ST QO‘SHILDI!\n\n"
-                            "👥 +1 ta do‘st\n"
-                            "💵 +5 000 so‘m bonus\n\n"
-                            f"👥 Jami: {friends} ta\n"
-                            f"💰 Balans: {balance:,} so‘m"
-                        )
-                    )
-                except Exception:
-                    pass
-
-    # Asosiy menyu
     keyboard = [
-        ["ℹ️ Bot haqida", ["🆔 Mening ID", "📍 Joylashuv"],
-        ["📞 Aloqa"]
+
+        [
+            InlineKeyboardButton(
+                "📢 Kanalga obuna bo‘lish",
+                url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "✅ Obuna bo‘ldim",
+                callback_data="check_subscription"
+            )
+        ]
+
     ]
 
-    await update.message.reply_text(
-        f"👋 Salom, {user.first_name}!\n\n"
-        "🤖 KASETACHI BOTga xush kelibsiz!\n\n"
-        "👇 Kerakli bo‘limni tanlang:",
+    text = (
+        "🔒 KASETACHI BOT\n\n"
+        "Botdan foydalanish uchun avval "
+        "kanalimizga obuna bo‘ling.\n\n"
+        "1️⃣ Kanalga kiring\n"
+        "2️⃣ Obuna bo‘ling\n"
+        "3️⃣ «✅ Obuna bo‘ldim» tugmasini bosing"
+    )
+
+    if update.callback_query:
+
+        await update.callback_query.message.edit_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    else:
+
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+
+# =========================
+# ASOSIY MENYU
+# =========================
+
+async def show_main_menu(
+    chat_id,
+    context,
+    first_name
+):
+
+    keyboard = [
+
+        [
+            "ℹ️ Bot haqida",
+            "🆔 Mening ID"
+        ],
+
+        [
+            "🎮 O‘yin",
+            "📍 Joylashuv"
+        ],
+
+        [
+            "📞 Aloqa"
+        ]
+
+    ]
+
+    await context.bot.send_message(
+
+        chat_id=chat_id,
+
+        text=(
+            f"👋 Salom, {first_name}!\n\n"
+            "🤖 KASETACHI BOTga xush kelibsiz!\n\n"
+            "👇 Kerakli bo‘limni tanlang:"
+        ),
+
         reply_markup=ReplyKeyboardMarkup(
             keyboard,
             resize_keyboard=True
@@ -151,169 +205,587 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
+# START
+# =========================
+
+async def start(
+    update,
+    context
+):
+
+    user = update.effective_user
+
+    subscribed = await is_subscribed(
+        user.id,
+        context
+    )
+
+    if not subscribed:
+
+        await show_subscription(
+            update,
+            context
+        )
+
+        return
+
+    add_user(
+        user.id,
+        user.first_name
+    )
+
+    await show_main_menu(
+        user.id,
+        context,
+        user.first_name
+    )
+
+
+# =========================
+# OBUNA BO‘LDIM
+# =========================
+
+async def check_subscription(
+    update,
+    context
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    user = query.from_user
+
+    subscribed = await is_subscribed(
+        user.id,
+        context
+    )
+
+    if not subscribed:
+
+        await query.answer(
+            "❌ Avval kanalga obuna bo‘ling!",
+            show_alert=True
+        )
+
+        return
+
+    await query.message.delete()
+
+    add_user(
+        user.id,
+        user.first_name
+    )
+
+    await show_main_menu(
+        user.id,
+        context,
+        user.first_name
+    )
+
+
+# =========================
+# O‘YIN SOVRINLARI
+# =========================
+
+PRIZES = [
+
+    "🎁 Tekin",
+
+    "🏷️ 50% chegirma",
+    "🏷️ 50% chegirma",
+
+    "🏷️ 30% chegirma",
+    "🏷️ 30% chegirma",
+    "🏷️ 30% chegirma",
+
+    "🏷️ 20% chegirma",
+    "🏷️ 20% chegirma",
+    "🏷️ 20% chegirma",
+    "🏷️ 20% chegirma",
+
+    "🏷️ 10% chegirma",
+    "🏷️ 10% chegirma",
+    "🏷️ 10% chegirma",
+
+    "😔 Sovrinsiz",
+    "😔 Sovrinsiz",
+    "😔 Sovrinsiz",
+    "😔 Sovrinsiz",
+    "😔 Sovrinsiz",
+
+    "🎁 Tekin",
+    "🏷️ 50% chegirma"
+]
+
+
+# =========================
+# O‘YINNI BOSHLASH
+# =========================
+
+async def start_game(
+    update,
+    context
+):
+
+    user = update.effective_user
+
+    cursor.execute("""
+        SELECT played, prize
+        FROM users
+        WHERE user_id = ?
+    """, (
+        user.id,
+    ))
+
+    result = cursor.fetchone()
+
+    if result and result[0] == 1:
+
+        await update.message.reply_text(
+            "❌ Siz bu o‘yindan allaqachon "
+            "foydalanganingiz!\n\n"
+            f"🏆 Sizning natijangiz: {result[1]}"
+        )
+
+        return
+
+
+    # Har bir foydalanuvchi uchun alohida random
+    shuffled_prizes = PRIZES.copy()
+
+    random.shuffle(
+        shuffled_prizes
+    )
+
+
+    # Callback ichiga sovrinning o‘zini emas,
+    # faqat o‘yin ID va katak raqamini qo‘yamiz.
+    context.user_data["game_prizes"] = shuffled_prizes
+
+    context.user_data["game_active"] = True
+
+
+    keyboard = []
+
+    for i in range(20):
+
+        keyboard.append([
+            InlineKeyboardButton(
+                "🎁 SOVRIN",
+                callback_data=f"prize_{i}"
+            )
+        ])
+
+
+    await update.message.reply_text(
+
+        "🎮 SOVRINLI O‘YIN\n\n"
+
+        "🎁 20 ta yopiq sovrin bor!\n\n"
+
+        "👇 Ulardan faqat BITTASINI tanlang.\n"
+
+        "⚠️ Tanlaganingizdan keyin boshqa "
+        "sovrin tanlash mumkin bo‘lmaydi.",
+
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        )
+    )
+
+
+# =========================
+# SOVRINNI TANLASH
+# =========================
+
+async def choose_prize(
+    update,
+    context
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    user = query.from_user
+
+
+    # O‘yin boshlanganini tekshirish
+
+    if not context.user_data.get(
+        "game_active",
+        False
+    ):
+
+        await query.answer(
+            "❌ Bu o‘yin yopilgan.",
+            show_alert=True
+        )
+
+        return
+
+
+    # User allaqachon o‘ynaganmi?
+
+    cursor.execute("""
+        SELECT played, prize
+        FROM users
+        WHERE user_id = ?
+    """, (
+        user.id,
+    ))
+
+    result = cursor.fetchone()
+
+
+    if result and result[0] == 1:
+
+        context.user_data["game_active"] = False
+
+        await query.message.edit_text(
+            "❌ Siz bu o‘yindan allaqachon "
+            "foydalangansiz!\n\n"
+            f"🏆 Natijangiz: {result[1]}"
+        )
+
+        return
+
+
+    # Katak raqami
+
+    index = int(
+        query.data.split("_")[1]
+    )
+
+
+    prizes = context.user_data.get(
+        "game_prizes"
+    )
+
+
+    if not prizes or len(prizes) != 20:
+
+        await query.message.edit_text(
+            "⚠️ O‘yin ma’lumotlari topilmadi. "
+            "Iltimos, /start ni bosing."
+        )
+
+        return
+
+
+    prize = prizes[index]
+
+
+    # Natijani DATABASEga saqlash
+
+    cursor.execute("""
+        UPDATE users
+        SET played = 1,
+            prize = ?
+        WHERE user_id = ?
+    """, (
+        prize,
+        user.id
+    ))
+
+    db.commit()
+
+
+    # O‘yin tugadi
+
+    context.user_data["game_active"] = False
+
+
+    # Natija
+
+    if prize == "😔 Sovrinsiz":
+
+        text = (
+            "😔 Afsus!\n\n"
+            "Bu safar sizga sovrin tushmadi.\n\n"
+            "🎮 O‘yinda qatnashganingiz uchun rahmat!"
+        )
+
+    elif prize == "🎁 Tekin":
+
+        text = (
+            "🎉 TABRIKLAYMIZ!\n\n"
+            "🎁 Siz **TEKIN SOVG‘A** yutib oldingiz!\n\n"
+            "👏 Omadingiz keldi!"
+        )
+
+    else:
+
+        text = (
+            "🎉 TABRIKLAYMIZ!\n\n"
+            f"🏆 Siz **{prize}** yutib oldingiz!\n\n"
+            "👏 Omadingiz keldi!"
+        )
+
+
+    await query.message.edit_text(
+        text,
+        parse_mode="Markdown"
+    )
+
+
+# =========================
 # TUGMALAR
 # =========================
 
-async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def buttons(
+    update,
+    context
+):
 
     text = update.message.text
+
     user = update.effective_user
 
-    # -------------------------
+
+    # =========================
+    # O‘YIN
+    # =========================
+
+    if text == "🎮 O‘yin":
+
+        await start_game(
+            update,
+            context
+        )
+
+        return
+
+
+    # =========================
     # BOT HAQIDA
-    # -------------------------
+    # =========================
 
     if text == "ℹ️ Bot haqida":
 
         await update.message.reply_text(
+
             "ℹ️ BOT HAQIDA\n\n"
+
             "🤖 KASETACHI BOT\n\n"
+
+            "Botimizga xush kelibsiz! 😊"
+
         )
 
-    # -------------------------
-    # PUL ISHLASH
-    # -------------------------
 
-
-    # -------------------------
-    # DO‘ST QO‘SHISH
-    # -------------------------
-
-    elif text == "👥 Do‘st qo‘shish":
-
-        referral_link = (
-            f"https://t.me/{BOT_USERNAME}?start={user.id}"
-        )
-
-        cursor.execute("""
-            SELECT friends, balance
-            FROM users
-            WHERE user_id = ?
-        """, (user.id,))
-
-        result = cursor.fetchone()
-
-        friends = result[0] if result else 0
-        balance = result[1] if result else 0
-
-        await update.message.reply_text(
-            "👥 DO‘ST QO‘SHISH\n\n"
-            "🔗 SIZNING SHAXSIY HAVOLANGIZ:\n\n"
-            f"{referral_link}\n\n"
-            "📤 Shu havolani do‘stlaringizga yuboring.\n\n"
-            f"👥 Do‘stlar: {friends} ta\n"
-        
-        )
-
-    # -------------------------
-    # BALANS
-    # -------------------------
-
-    # -------------------------
-    # BONUS
-    # -------------------------
-
-        else:
-
-            await update.message.reply_text(
-                "🔒 BONUS HALI YOPIQ\n\n"
-                f"👥 Sizda: {friends} ta\n"
-                f"🎯 Kerak: {REQUIRED_FRIENDS} ta\n\n"
-                f"Yana {REQUIRED_FRIENDS - friends} ta "
-                "do‘st taklif qiling."
-            )
-
-    # -------------------------
-    # STATISTIKA
-    # -------------------------
-
-    elif text == "📊 Statistika":
-
-
-       
-    # -------------------------
+    # =========================
     # ID
-    # -------------------------
+    # =========================
 
     elif text == "🆔 Mening ID":
 
         await update.message.reply_text(
+
             "🆔 MENING ID\n\n"
+
             f"👤 Ism: {user.first_name}\n"
             f"🆔 ID: {user.id}"
+
         )
 
-    # -------------------------
+
+    # =========================
     # JOYLASHUV
-    # -------------------------
+    # =========================
 
     elif text == "📍 Joylashuv":
 
         await update.message.reply_location(
+
             latitude=MY_LATITUDE,
             longitude=MY_LONGITUDE
+
         )
 
         await update.message.reply_text(
+
             "📍 BIZNING JOYLASHUVIMIZ\n\n"
+
             "🗺️ Yuqoridagi xaritadagi belgi "
             "orqali joylashuvni ko‘rishingiz mumkin."
+
         )
 
-    # -------------------------
+
+    # =========================
     # ALOQA
-    # -------------------------
+    # =========================
 
     elif text == "📞 Aloqa":
 
         keyboard = [
+
             ["✉️ Menga yozish"],
+
+            ["📸 Instagram"],
+
             ["⬅️ Orqaga"]
+
         ]
 
         await update.message.reply_text(
+
             "📞 ALOQA\n\n"
+
             "📱 1-raqam: +998 88 222 59 64\n"
             "📱 2-raqam: +998 97 066 59 64\n\n"
-            "👤 Telegram: @farrux12123e456\n\n"
-            "💬 Menga yozish uchun tugmani bosing.",
+
+            "👤 Telegram: @farrux12123e456\n"
+            "📸 Instagram: @farrux_murodjonov",
+
             reply_markup=ReplyKeyboardMarkup(
                 keyboard,
                 resize_keyboard=True
             )
+
         )
 
-    # -------------------------
-    # MENGA YOZISH
-    # -------------------------
+
+    # =========================
+    # INSTAGRAM
+    # =========================
+
+    elif text == "📸 Instagram":
+
+        keyboard = [
+
+            [
+                InlineKeyboardButton(
+                    "📸 Instagramni ochish",
+                    url="https://instagram.com/farrux_murodjonov"
+                )
+            ]
+
+        ]
+
+        await update.message.reply_text(
+
+            "📸 Instagram profil:",
+
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
+
+        )
+
+
+    # =========================
+    # TELEGRAM
+    # =========================
 
     elif text == "✉️ Menga yozish":
 
         await update.message.reply_text(
-            "💬 SIZ MEN BILAN TELEGRAMDA YOZISHINGIZ MUMKIN:\n\n"
+
+            "💬 MEN BILAN TELEGRAMDA YOZISHINGIZ MUMKIN:\n\n"
+
             "👉 https://t.me/farrux12123e456"
+
         )
 
-    # -------------------------
+
+    # =========================
     # ORQAGA
-    # -------------------------
+    # =========================
 
     elif text == "⬅️ Orqaga":
 
-        await start(update, context)
+        await start(
+            update,
+            context
+        )
 
 
 # =========================
-# BOTNI ISHGA TUSHIRISH
+# ADMIN
+# =========================
+
+async def admin(
+    update,
+    context
+):
+
+    if update.effective_user.id != ADMIN_ID:
+
+        return
+
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM users"
+    )
+
+    total_users = cursor.fetchone()[0]
+
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM users WHERE played = 1"
+    )
+
+    total_players = cursor.fetchone()[0]
+
+
+    await update.message.reply_text(
+
+        "👑 ADMIN PANEL\n\n"
+
+        f"👥 Jami foydalanuvchilar: "
+        f"{total_users} ta\n\n"
+
+        f"🎮 O‘ynaganlar: "
+        f"{total_players} ta"
+
+    )
+
+
+# =========================
+# MAIN
 # =========================
 
 def main():
 
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(
+        TOKEN
+    ).build()
+
 
     app.add_handler(
-        CommandHandler("start", start)
+        CommandHandler(
+            "start",
+            start
+        )
     )
+
+
+    app.add_handler(
+        CommandHandler(
+            "admin",
+            admin
+        )
+    )
+
+
+    app.add_handler(
+        CallbackQueryHandler(
+            check_subscription,
+            pattern="^check_subscription$"
+        )
+    )
+
+
+    app.add_handler(
+        CallbackQueryHandler(
+            choose_prize,
+            pattern="^prize_[0-9]+$"
+        )
+    )
+
 
     app.add_handler(
         MessageHandler(
@@ -321,10 +793,20 @@ def main():
             buttons
         )
     )
-    print("🤖 KASETACHI BOT ISHLAYAPTI!")
+
+
+    print(
+        "🤖 KASETACHI BOT ISHLAYAPTI!"
+    )
+
 
     app.run_polling()
 
 
+# =========================
+# ISHGA TUSHIRISH
+# =========================
+
 if __name__ == "__main__":
+
     main()
