@@ -22,7 +22,7 @@ from telegram.ext import (
 # SOZLAMALAR
 # ==================================================
 
-TOKEN = "BU_YERGA_YANGI_BOT_TOKENINGNI_QOY"
+TOKEN = "8737182258:AAHMlj4Xzym8svHvC4YLANw9JQ3kADE-b4Y"
 
 # Telegram ID'ingni shu yerga yoz
 ADMIN_ID = 123456789
