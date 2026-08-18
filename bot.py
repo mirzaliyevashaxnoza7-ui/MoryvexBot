@@ -135,8 +135,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Asosiy menyu
     keyboard = [
-        ["ℹ️ Bot haqida", "💰 Pul ishlash"],
-        ["🆔 Mening ID", "📍 Joylashuv"],
+        ["ℹ️ Bot haqida", ["🆔 Mening ID", "📍 Joylashuv"],
         ["📞 Aloqa"]
     ]
 
@@ -169,37 +168,12 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "ℹ️ BOT HAQIDA\n\n"
             "🤖 KASETACHI BOT\n\n"
-            "👥 Do‘stlaringizni taklif qiling.\n"
-            "💰 Bonus yig‘ing.\n"
-            "🎁 5 ta do‘st taklif qilgandan keyin "
-            "bonusdan foydalanish mumkin."
         )
 
     # -------------------------
     # PUL ISHLASH
     # -------------------------
 
-    elif text == "💰 Pul ishlash":
-
-        keyboard = [
-            ["👥 Do‘st qo‘shish"],
-            ["💰 Balansim"],
-            ["🎁 Bonusdan foydalanish"],
-            ["📊 Statistika"],
-            ["⬅️ Orqaga"]
-        ]
-
-        await update.message.reply_text(
-            "💰 PUL ISHLASH\n\n"
-            "👥 Do‘stlaringizni taklif qiling.\n"
-            "💵 Har bir do‘st = 5 000 so‘m bonus.\n\n"
-            "🔓 5 ta do‘st taklif qilgandan keyin "
-            "bonusdan foydalanish ochiladi.",
-            reply_markup=ReplyKeyboardMarkup(
-                keyboard,
-                resize_keyboard=True
-            )
-        )
 
     # -------------------------
     # DO‘ST QO‘SHISH
@@ -227,69 +201,17 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔗 SIZNING SHAXSIY HAVOLANGIZ:\n\n"
             f"{referral_link}\n\n"
             "📤 Shu havolani do‘stlaringizga yuboring.\n\n"
-            "💵 1 ta do‘st = 5 000 so‘m\n"
             f"👥 Do‘stlar: {friends} ta\n"
-            f"💰 Balans: {balance:,} so‘m\n\n"
-            f"🔓 Kerak: {REQUIRED_FRIENDS} ta do‘st"
+        
         )
 
     # -------------------------
     # BALANS
     # -------------------------
 
-    elif text == "💰 Balansim":
-
-        cursor.execute("""
-            SELECT friends, balance
-            FROM users
-            WHERE user_id = ?
-        """, (user.id,))
-
-        result = cursor.fetchone()
-
-        friends = result[0] if result else 0
-        balance = result[1] if result else 0
-
-        if friends >= REQUIRED_FRIENDS:
-            status = "✅ Bonusdan foydalanish ochiq!"
-        else:
-            status = (
-                f"🔒 Yana {REQUIRED_FRIENDS - friends} ta do‘st kerak."
-            )
-
-        await update.message.reply_text(
-            "💰 BALANSIM\n\n"
-            f"💵 Balans: {balance:,} so‘m\n"
-            f"👥 Do‘stlar: {friends} ta\n\n"
-            f"{status}"
-        )
-
     # -------------------------
     # BONUS
     # -------------------------
-
-    elif text == "🎁 Bonusdan foydalanish":
-
-        cursor.execute("""
-            SELECT friends, balance
-            FROM users
-            WHERE user_id = ?
-        """, (user.id,))
-
-        result = cursor.fetchone()
-
-        friends = result[0] if result else 0
-        balance = result[1] if result else 0
-
-        if friends >= REQUIRED_FRIENDS:
-
-            await update.message.reply_text(
-                "🎁 BONUSDAN FOYDALANISH\n\n"
-                "✅ Sizga bonusdan foydalanish ochildi!\n\n"
-                f"💰 Mavjud bonus: {balance:,} so‘m\n\n"
-                "🛠️ Xizmatdan foydalanish qismini "
-                "keyingi bosqichda qo‘shamiz."
-            )
 
         else:
 
@@ -307,23 +229,8 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text == "📊 Statistika":
 
-        cursor.execute("""
-            SELECT friends, balance
-            FROM users
-            WHERE user_id = ?
-        """, (user.id,))
 
-        result = cursor.fetchone()
-
-        friends = result[0] if result else 0
-        balance = result[1] if result else 0
-
-        await update.message.reply_text(
-            "📊 STATISTIKA\n\n"
-            f"👥 Taklif qilinganlar: {friends} ta\n"
-            f"💰 Bonus: {balance:,} so‘m"
-        )
-
+       
     # -------------------------
     # ID
     # -------------------------
