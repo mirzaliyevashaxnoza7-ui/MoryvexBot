@@ -22,7 +22,7 @@ from telegram.ext import (
 # SOZLAMALAR
 # =========================
 
-TOKEN = "YANGI_BOT_TOKENING"
+TOKEN = "8737182258:AAHMlj4Xzym8svHvC4YLANw9JQ3kADE-b4Y"
 
 ADMIN_ID = 123456789
 
