@@ -9,7 +9,17 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 TOKEN = "8737182258:AAHMlj4Xzym8svHvC4YLANw9JQ3kADE-b4Y"
 
 ADMIN_ID = 8319293537
+async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
 
+    cursor.execute("SELECT COUNT(*) FROM users")
+    total_users = cursor.fetchone()[0]
+
+    await update.message.reply_text(
+        "👑 ADMIN PANEL\n\n"
+        f"👥 Jami foydalanuvchilar: {total_users} ta"
+    )
 async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
