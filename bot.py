@@ -18,23 +18,26 @@ from telegram.ext import (
 )
 
 
-# =========================
+# ==================================================
 # SOZLAMALAR
-# =========================
+# ==================================================
 
-TOKEN = "8737182258:AAHMlj4Xzym8svHvC4YLANw9JQ3kADE-b4Y"
+TOKEN = "BU_YERGA_YANGI_BOT_TOKENINGNI_QOY"
 
+# Telegram ID'ingni shu yerga yoz
 ADMIN_ID = 123456789
 
-CHANNEL_USERNAME = "@SENING_KANALING"
+# SENING KANALING
+CHANNEL_USERNAME = "@muzikadamazaqildamol1"
 
+# Joylashuv
 MY_LATITUDE = 41.192947971842685
 MY_LONGITUDE = 69.02532913641379
 
 
-# =========================
+# ==================================================
 # DATABASE
-# =========================
+# ==================================================
 
 db = sqlite3.connect(
     "kasetachi.db",
@@ -43,21 +46,45 @@ db = sqlite3.connect(
 
 cursor = db.cursor()
 
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
-    first_name TEXT,
-    played INTEGER DEFAULT 0,
-    prize TEXT
+    first_name TEXT
 )
 """)
 
 db.commit()
 
 
-# =========================
-# USER QO‘SHISH
-# =========================
+# Eski database bo'lsa ham ishlashi uchun
+try:
+    cursor.execute(
+        "ALTER TABLE users ADD COLUMN played INTEGER DEFAULT 0"
+    )
+except sqlite3.OperationalError:
+    pass
+
+try:
+    cursor.execute(
+        "ALTER TABLE users ADD COLUMN prize TEXT"
+    )
+except sqlite3.OperationalError:
+    pass
+
+try:
+    cursor.execute(
+        "ALTER TABLE users ADD COLUMN feedback TEXT"
+    )
+except sqlite3.OperationalError:
+    pass
+
+db.commit()
+
+
+# ==================================================
+# USER QO'SHISH
+# ==================================================
 
 def add_user(user_id, first_name):
 
@@ -71,8 +98,8 @@ def add_user(user_id, first_name):
 
     cursor.execute("""
         INSERT INTO users
-        (user_id, first_name, played, prize)
-        VALUES (?, ?, 0, NULL)
+        (user_id, first_name, played, prize, feedback)
+        VALUES (?, ?, 0, NULL, NULL)
     """, (
         user_id,
         first_name
@@ -81,14 +108,11 @@ def add_user(user_id, first_name):
     db.commit()
 
 
-# =========================
+# ==================================================
 # OBUNANI TEKSHIRISH
-# =========================
+# ==================================================
 
-async def is_subscribed(
-    user_id,
-    context
-):
+async def is_subscribed(user_id, context):
 
     try:
 
@@ -108,21 +132,18 @@ async def is_subscribed(
         return False
 
 
-# =========================
+# ==================================================
 # OBUNA OYNASI
-# =========================
+# ==================================================
 
-async def show_subscription(
-    update,
-    context
-):
+async def show_subscription(update, context):
 
     keyboard = [
 
         [
             InlineKeyboardButton(
                 "📢 Kanalga obuna bo‘lish",
-                url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}"
+                url="https://t.me/muzikadamazaqildamol1"
             )
         ],
 
@@ -159,9 +180,9 @@ async def show_subscription(
         )
 
 
-# =========================
+# ==================================================
 # ASOSIY MENYU
-# =========================
+# ==================================================
 
 async def show_main_menu(
     chat_id,
@@ -178,6 +199,11 @@ async def show_main_menu(
 
         [
             "🎮 O‘yin",
+            "🏆 G‘oliblar"
+        ],
+
+        [
+            "💬 Fikr qoldirish",
             "📍 Joylashuv"
         ],
 
@@ -204,14 +230,11 @@ async def show_main_menu(
     )
 
 
-# =========================
+# ==================================================
 # START
-# =========================
+# ==================================================
 
-async def start(
-    update,
-    context
-):
+async def start(update, context):
 
     user = update.effective_user
 
@@ -241,14 +264,11 @@ async def start(
     )
 
 
-# =========================
-# OBUNA BO‘LDIM
-# =========================
+# ==================================================
+# OBUNA BO'LDIM
+# ==================================================
 
-async def check_subscription(
-    update,
-    context
-):
+async def check_subscription(update, context):
 
     query = update.callback_query
 
@@ -284,9 +304,9 @@ async def check_subscription(
     )
 
 
-# =========================
-# O‘YIN SOVRINLARI
-# =========================
+# ==================================================
+# 20 TA SOVRIN
+# ==================================================
 
 PRIZES = [
 
@@ -319,14 +339,11 @@ PRIZES = [
 ]
 
 
-# =========================
-# O‘YINNI BOSHLASH
-# =========================
+# ==================================================
+# O'YIN
+# ==================================================
 
-async def start_game(
-    update,
-    context
-):
+async def start_game(update, context):
 
     user = update.effective_user
 
@@ -334,9 +351,7 @@ async def start_game(
         SELECT played, prize
         FROM users
         WHERE user_id = ?
-    """, (
-        user.id,
-    ))
+    """, (user.id,))
 
     result = cursor.fetchone()
 
@@ -344,38 +359,38 @@ async def start_game(
 
         await update.message.reply_text(
             "❌ Siz bu o‘yindan allaqachon "
-            "foydalanganingiz!\n\n"
-            f"🏆 Sizning natijangiz: {result[1]}"
+            "foydalangansiz!\n\n"
+            f"🏆 Sizning natijangiz:\n{result[1]}"
         )
 
         return
 
 
-    # Har bir foydalanuvchi uchun alohida random
-    shuffled_prizes = PRIZES.copy()
+    prizes = PRIZES.copy()
 
-    random.shuffle(
-        shuffled_prizes
-    )
+    random.shuffle(prizes)
 
-
-    # Callback ichiga sovrinning o‘zini emas,
-    # faqat o‘yin ID va katak raqamini qo‘yamiz.
-    context.user_data["game_prizes"] = shuffled_prizes
-
+    context.user_data["game_prizes"] = prizes
     context.user_data["game_active"] = True
 
 
+    # 4 x 5 ko'rinish
     keyboard = []
 
-    for i in range(20):
+    for i in range(0, 20, 5):
 
-        keyboard.append([
-            InlineKeyboardButton(
-                "🎁 SOVRIN",
-                callback_data=f"prize_{i}"
+        row = []
+
+        for j in range(i, i + 5):
+
+            row.append(
+                InlineKeyboardButton(
+                    "🎁 SOVRIN",
+                    callback_data=f"prize_{j}"
+                )
             )
-        ])
+
+        keyboard.append(row)
 
 
     await update.message.reply_text(
@@ -384,10 +399,10 @@ async def start_game(
 
         "🎁 20 ta yopiq sovrin bor!\n\n"
 
-        "👇 Ulardan faqat BITTASINI tanlang.\n"
+        "👇 Faqat BITTA sovrinni tanlang.\n\n"
 
         "⚠️ Tanlaganingizdan keyin boshqa "
-        "sovrin tanlash mumkin bo‘lmaydi.",
+        "sovrin tanlay olmaysiz.",
 
         reply_markup=InlineKeyboardMarkup(
             keyboard
@@ -395,14 +410,11 @@ async def start_game(
     )
 
 
-# =========================
-# SOVRINNI TANLASH
-# =========================
+# ==================================================
+# SOVRIN TANLASH
+# ==================================================
 
-async def choose_prize(
-    update,
-    context
-):
+async def choose_prize(update, context):
 
     query = update.callback_query
 
@@ -410,8 +422,6 @@ async def choose_prize(
 
     user = query.from_user
 
-
-    # O‘yin boshlanganini tekshirish
 
     if not context.user_data.get(
         "game_active",
@@ -426,15 +436,11 @@ async def choose_prize(
         return
 
 
-    # User allaqachon o‘ynaganmi?
-
     cursor.execute("""
         SELECT played, prize
         FROM users
         WHERE user_id = ?
-    """, (
-        user.id,
-    ))
+    """, (user.id,))
 
     result = cursor.fetchone()
 
@@ -452,22 +458,19 @@ async def choose_prize(
         return
 
 
-    # Katak raqami
-
     index = int(
         query.data.split("_")[1]
     )
-
 
     prizes = context.user_data.get(
         "game_prizes"
     )
 
 
-    if not prizes or len(prizes) != 20:
+    if not prizes:
 
         await query.message.edit_text(
-            "⚠️ O‘yin ma’lumotlari topilmadi. "
+            "⚠️ O‘yin ma’lumotlari topilmadi.\n"
             "Iltimos, /start ni bosing."
         )
 
@@ -477,8 +480,7 @@ async def choose_prize(
     prize = prizes[index]
 
 
-    # Natijani DATABASEga saqlash
-
+    # Natijani saqlash
     cursor.execute("""
         UPDATE users
         SET played = 1,
@@ -492,13 +494,10 @@ async def choose_prize(
     db.commit()
 
 
-    # O‘yin tugadi
-
     context.user_data["game_active"] = False
 
 
-    # Natija
-
+    # Natijani ko'rsatish
     if prize == "😔 Sovrinsiz":
 
         text = (
@@ -511,7 +510,7 @@ async def choose_prize(
 
         text = (
             "🎉 TABRIKLAYMIZ!\n\n"
-            "🎁 Siz **TEKIN SOVG‘A** yutib oldingiz!\n\n"
+            "🎁 Siz TEKIN SOVG‘A yutib oldingiz!\n\n"
             "👏 Omadingiz keldi!"
         )
 
@@ -519,34 +518,152 @@ async def choose_prize(
 
         text = (
             "🎉 TABRIKLAYMIZ!\n\n"
-            f"🏆 Siz **{prize}** yutib oldingiz!\n\n"
+            f"🏆 Siz {prize} yutib oldingiz!\n\n"
             "👏 Omadingiz keldi!"
         )
 
 
-    await query.message.edit_text(
-        text,
-        parse_mode="Markdown"
+    await query.message.edit_text(text)
+
+
+# ==================================================
+# G'OLIBLAR
+# ==================================================
+
+async def winners(update, context):
+
+    cursor.execute("""
+        SELECT first_name, prize
+        FROM users
+        WHERE played = 1
+        ORDER BY rowid DESC
+        LIMIT 10
+    """)
+
+    winners_list = cursor.fetchall()
+
+
+    if not winners_list:
+
+        await update.message.reply_text(
+            "🏆 G‘OLIBLAR\n\n"
+            "Hozircha hech kim o‘ynamagan."
+        )
+
+        return
+
+
+    text = "🏆 SO‘NGGI G‘OLIBLAR\n\n"
+
+    for number, (name, prize) in enumerate(
+        winners_list,
+        start=1
+    ):
+
+        text += (
+            f"{number}. 👤 {name}\n"
+            f"   🎁 {prize}\n\n"
+        )
+
+
+    await update.message.reply_text(text)
+
+
+# ==================================================
+# FIKR QOLDIRISH
+# ==================================================
+
+async def ask_feedback(update, context):
+
+    context.user_data["waiting_feedback"] = True
+
+    await update.message.reply_text(
+        "💬 FIKR QOLDIRISH\n\n"
+        "✍️ Bot haqidagi fikringizni yozing.\n\n"
+        "Masalan: Bot juda yaxshi ekan!"
     )
 
 
-# =========================
-# TUGMALAR
-# =========================
+# ==================================================
+# FIKRNI QABUL QILISH
+# ==================================================
 
-async def buttons(
-    update,
-    context
-):
+async def save_feedback(update, context):
+
+    user = update.effective_user
+
+    feedback = update.message.text
+
+
+    cursor.execute("""
+        UPDATE users
+        SET feedback = ?
+        WHERE user_id = ?
+    """, (
+        feedback,
+        user.id
+    ))
+
+    db.commit()
+
+
+    context.user_data["waiting_feedback"] = False
+
+
+    await update.message.reply_text(
+        "✅ Fikringiz qabul qilindi!\n\n"
+        "💬 Fikringiz uchun rahmat! ❤️"
+    )
+
+
+    # Adminga yuborish
+    try:
+
+        await context.bot.send_message(
+
+            chat_id=ADMIN_ID,
+
+            text=(
+                "💬 YANGI FIKR!\n\n"
+                f"👤 Ism: {user.first_name}\n"
+                f"🆔 ID: {user.id}\n\n"
+                f"📝 Fikr:\n{feedback}"
+            )
+
+        )
+
+    except Exception:
+        pass
+
+
+# ==================================================
+# TUGMALAR
+# ==================================================
+
+async def buttons(update, context):
 
     text = update.message.text
 
     user = update.effective_user
 
 
-    # =========================
-    # O‘YIN
-    # =========================
+    # Fikr kutilyaptimi?
+    if context.user_data.get(
+        "waiting_feedback",
+        False
+    ):
+
+        await save_feedback(
+            update,
+            context
+        )
+
+        return
+
+
+    # ==========================
+    # O'YIN
+    # ==========================
 
     if text == "🎮 O‘yin":
 
@@ -558,42 +675,67 @@ async def buttons(
         return
 
 
-    # =========================
+    # ==========================
+    # G'OLIBLAR
+    # ==========================
+
+    if text == "🏆 G‘oliblar":
+
+        await winners(
+            update,
+            context
+        )
+
+        return
+
+
+    # ==========================
+    # FIKR
+    # ==========================
+
+    if text == "💬 Fikr qoldirish":
+
+        await ask_feedback(
+            update,
+            context
+        )
+
+        return
+
+
+    # ==========================
     # BOT HAQIDA
-    # =========================
+    # ==========================
 
     if text == "ℹ️ Bot haqida":
 
         await update.message.reply_text(
-
             "ℹ️ BOT HAQIDA\n\n"
-
             "🤖 KASETACHI BOT\n\n"
-
-            "Botimizga xush kelibsiz! 😊"
-
+            "🎮 Qiziqarli o‘yinlarda qatnashing.\n"
+            "🎁 Sovrinlarni sinab ko‘ring.\n\n"
+            "Botimizga xush kelibsiz! ❤️"
         )
 
 
-    # =========================
+    # ==========================
     # ID
-    # =========================
+    # ==========================
 
     elif text == "🆔 Mening ID":
 
         await update.message.reply_text(
 
             "🆔 MENING ID\n\n"
-
             f"👤 Ism: {user.first_name}\n"
             f"🆔 ID: {user.id}"
 
         )
 
 
-    # =========================
+    # ==========================
     # JOYLASHUV
-    # =========================
+    # ==========================
 
     elif text == "📍 Joylashuv":
 
@@ -605,18 +747,15 @@ async def buttons(
         )
 
         await update.message.reply_text(
-
             "📍 BIZNING JOYLASHUVIMIZ\n\n"
-
             "🗺️ Yuqoridagi xaritadagi belgi "
             "orqali joylashuvni ko‘rishingiz mumkin."
-
         )
 
 
-    # =========================
+    # ==========================
     # ALOQA
-    # =========================
+    # ==========================
 
     elif text == "📞 Aloqa":
 
@@ -629,6 +768,7 @@ async def buttons(
             ["⬅️ Orqaga"]
 
         ]
+
 
         await update.message.reply_text(
 
@@ -644,13 +784,12 @@ async def buttons(
                 keyboard,
                 resize_keyboard=True
             )
-
         )
 
 
-    # =========================
+    # ==========================
     # INSTAGRAM
-    # =========================
+    # ==========================
 
     elif text == "📸 Instagram":
 
@@ -665,6 +804,7 @@ async def buttons(
 
         ]
 
+
         await update.message.reply_text(
 
             "📸 Instagram profil:",
@@ -672,28 +812,27 @@ async def buttons(
             reply_markup=InlineKeyboardMarkup(
                 keyboard
             )
-
         )
 
 
-    # =========================
+    # ==========================
     # TELEGRAM
-    # =========================
+    # ==========================
 
     elif text == "✉️ Menga yozish":
 
         await update.message.reply_text(
 
-            "💬 MEN BILAN TELEGRAMDA YOZISHINGIZ MUMKIN:\n\n"
+            "💬 MEN BILAN TELEGRAMDA "
+            "YOZISHINGIZ MUMKIN:\n\n"
 
             "👉 https://t.me/farrux12123e456"
-
         )
 
 
-    # =========================
+    # ==========================
     # ORQAGA
-    # =========================
+    # ==========================
 
     elif text == "⬅️ Orqaga":
 
@@ -703,20 +842,18 @@ async def buttons(
         )
 
 
-# =========================
-# ADMIN
-# =========================
+# ==================================================
+# ADMIN PANEL
+# ==================================================
 
-async def admin(
-    update,
-    context
-):
+async def admin(update, context):
 
     if update.effective_user.id != ADMIN_ID:
 
         return
 
 
+    # Jami userlar
     cursor.execute(
         "SELECT COUNT(*) FROM users"
     )
@@ -724,6 +861,7 @@ async def admin(
     total_users = cursor.fetchone()[0]
 
 
+    # O'ynaganlar
     cursor.execute(
         "SELECT COUNT(*) FROM users WHERE played = 1"
     )
@@ -731,22 +869,48 @@ async def admin(
     total_players = cursor.fetchone()[0]
 
 
-    await update.message.reply_text(
+    # Sovrin statistikasi
+    cursor.execute("""
+        SELECT prize, COUNT(*)
+        FROM users
+        WHERE played = 1
+        GROUP BY prize
+    """)
 
+    prize_stats = cursor.fetchall()
+
+
+    text = (
         "👑 ADMIN PANEL\n\n"
-
         f"👥 Jami foydalanuvchilar: "
         f"{total_users} ta\n\n"
-
         f"🎮 O‘ynaganlar: "
-        f"{total_players} ta"
-
+        f"{total_players} ta\n\n"
+        "🎁 SOVRINLAR STATISTIKASI:\n"
     )
 
 
-# =========================
+    if prize_stats:
+
+        for prize, count in prize_stats:
+
+            text += (
+                f"\n{prize} — {count} ta"
+            )
+
+    else:
+
+        text += "\nHozircha o‘yin natijasi yo‘q."
+
+
+    await update.message.reply_text(
+        text
+    )
+
+
+# ==================================================
 # MAIN
-# =========================
+# ==================================================
 
 def main():
 
@@ -755,6 +919,7 @@ def main():
     ).build()
 
 
+    # START
     app.add_handler(
         CommandHandler(
             "start",
@@ -763,6 +928,7 @@ def main():
     )
 
 
+    # ADMIN
     app.add_handler(
         CommandHandler(
             "admin",
@@ -771,6 +937,7 @@ def main():
     )
 
 
+    # OBUNA
     app.add_handler(
         CallbackQueryHandler(
             check_subscription,
@@ -779,6 +946,7 @@ def main():
     )
 
 
+    # SOVRIN
     app.add_handler(
         CallbackQueryHandler(
             choose_prize,
@@ -787,6 +955,7 @@ def main():
     )
 
 
+    # TUGMALAR
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
@@ -803,9 +972,9 @@ def main():
     app.run_polling()
 
 
-# =========================
-# ISHGA TUSHIRISH
-# =========================
+# ==================================================
+# START BOT
+# ==================================================
 
 if __name__ == "__main__":
 
